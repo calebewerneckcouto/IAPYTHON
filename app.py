@@ -5,29 +5,29 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-chat = Flask(__name__)
+app = Flask(__name__)
 
 # Configuração da API da OpenAI - Nova sintaxe
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-@chat.route('/')
+@app.route('/')
 def index():
     return render_template('index.html')
 
-@chat.route('/translator')
+@app.route('/translator')
 def translator():
     return render_template('translator.html')
 
-@chat.route('/interview-assistant')
+@app.route('/interview-assistant')
 def interview_assistant():
     return render_template('interview.html')
 
-@chat.route('/java-assistant')
+@app.route('/java-assistant')
 def java_assistant():
     return render_template('java_assistant.html')
 
-@chat.route('/chat', methods=['POST'])
-def chat():
+@app.route('/chat', methods=['POST'])
+def chat_endpoint():  # Mudei o nome da função para evitar conflito
     try:
         data = request.get_json()
 
@@ -79,7 +79,7 @@ def chat():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@chat.route('/translate', methods=['POST'])
+@app.route('/translate', methods=['POST'])
 def translate():
     try:
         data = request.get_json()
@@ -128,7 +128,7 @@ def translate():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@chat.route('/interview', methods=['POST'])
+@app.route('/interview', methods=['POST'])
 def interview():
     try:
         data = request.get_json()
@@ -178,7 +178,7 @@ def interview():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@chat.route('/java-interview', methods=['POST'])
+@app.route('/java-interview', methods=['POST'])
 def java_interview():
     try:
         data = request.get_json()
@@ -224,4 +224,4 @@ def java_interview():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    chat.run(debug=True)
+    app.run(debug=True)

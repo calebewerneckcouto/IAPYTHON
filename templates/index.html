@@ -133,6 +133,35 @@
       background: white;
       border-left: 4px solid #2ecc71;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .speech-controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 5px;
+    }
+    .speech-btn {
+      background: #3498db;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      color: white;
+      transition: all 0.3s;
+    }
+    .speech-btn:hover {
+      background: #2980b9;
+      transform: scale(1.1);
+    }
+    .speech-btn.playing {
+      background: #e74c3c;
     }
     .status-bar {
       padding: 15px;
@@ -170,6 +199,7 @@
       display: flex;
       justify-content: center;
       gap: 15px;
+      flex-wrap: wrap;
     }
     .btn {
       padding: 12px 24px;
@@ -188,11 +218,65 @@
       background: #7f8c8d;
       transform: translateY(-2px);
     }
+    .btn-primary {
+      background: #9b59b6;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #8e44ad;
+      transform: translateY(-2px);
+    }
     .instructions {
       text-align: center;
       margin-bottom: 20px;
       color: #666;
       font-size: 0.9rem;
+    }
+    .auto-speech-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #9b59b6;
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px);
     }
   </style>
 </head>
@@ -207,6 +291,14 @@
     <div class="content">
       <div class="instructions">
         <p>Clique no microfone e comece a falar. Sua voz será transcrita e enviada para a IA automaticamente.</p>
+      </div>
+
+      <div class="auto-speech-toggle">
+        <label for="autoSpeech">Leitura automática de respostas:</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="autoSpeech" checked>
+          <span class="slider"></span>
+        </label>
       </div>
 
       <div class="voice-section">
@@ -244,6 +336,9 @@
         <button class="btn btn-secondary" onclick="clearAll()">
           🗑️ Limpar Tudo
         </button>
+        <button class="btn btn-primary" onclick="stopAllSpeech()">
+          ⏹️ Parar Voz
+        </button>
       </div>
     </div>
   </div>
@@ -252,9 +347,16 @@
     let recognition = null;
     let isListening = false;
     let currentTranscript = '';
+    let speechSynthesis = window.speechSynthesis;
+    let currentUtterance = null;
 
     window.onload = function() {
       initializeRecognition();
+      // Verifica suporte à síntese de voz
+      if (!speechSynthesis) {
+        console.warn('Síntese de voz não suportada neste navegador');
+        document.getElementById('autoSpeech').disabled = true;
+      }
     };
 
     function initializeRecognition() {
@@ -328,6 +430,86 @@
           updateStatus('⏸️ Escuta parada', false);
         }
       };
+    }
+
+    function speakText(text, responseId = null) {
+      if (!speechSynthesis) return;
+      
+      // Para qualquer fala anterior
+      stopSpeech();
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Configurações para voz feminina em português
+      utterance.lang = 'pt-BR';
+      utterance.rate = 1.0; // Velocidade normal
+      utterance.pitch = 1.2; // Tom mais agudo (feminino)
+      utterance.volume = 1.0;
+      
+      // Tenta encontrar uma voz feminina em português
+      const voices = speechSynthesis.getVoices();
+      const femaleVoice = voices.find(voice => 
+        voice.lang.includes('pt') && 
+        voice.name.toLowerCase().includes('female')
+      ) || voices.find(voice => 
+        voice.lang.includes('pt') && 
+        !voice.name.toLowerCase().includes('male')
+      );
+      
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+      }
+      
+      if (responseId) {
+        const playButton = document.querySelector(`[data-response="${responseId}"]`);
+        if (playButton) {
+          playButton.classList.add('playing');
+          playButton.innerHTML = '⏸️';
+        }
+      }
+      
+      utterance.onend = function() {
+        if (responseId) {
+          const playButton = document.querySelector(`[data-response="${responseId}"]`);
+          if (playButton) {
+            playButton.classList.remove('playing');
+            playButton.innerHTML = '🔊';
+          }
+        }
+        currentUtterance = null;
+      };
+      
+      utterance.onerror = function() {
+        if (responseId) {
+          const playButton = document.querySelector(`[data-response="${responseId}"]`);
+          if (playButton) {
+            playButton.classList.remove('playing');
+            playButton.innerHTML = '🔊';
+          }
+        }
+        currentUtterance = null;
+      };
+      
+      currentUtterance = utterance;
+      speechSynthesis.speak(utterance);
+    }
+
+    function stopSpeech() {
+      if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+      }
+      currentUtterance = null;
+      
+      // Reseta todos os botões de play
+      document.querySelectorAll('.speech-btn.playing').forEach(btn => {
+        btn.classList.remove('playing');
+        btn.innerHTML = '🔊';
+      });
+    }
+
+    function stopAllSpeech() {
+      stopSpeech();
+      updateStatus('⏹️ Voz parada', false);
     }
 
     function toggleVoiceRecognition() {
@@ -420,11 +602,25 @@
         // Remove loading e adiciona resposta
         responseDiv.removeChild(loadingElement);
         
+        const responseId = Date.now().toString();
         const answerElement = document.createElement('div');
         answerElement.className = 'response-item';
-        answerElement.textContent = data.answer;
+        answerElement.innerHTML = `
+          <div class="speech-controls">
+            <button class="speech-btn" data-response="${responseId}" onclick="speakText('${data.answer.replace(/'/g, "\\'")}', '${responseId}')">🔊</button>
+          </div>
+          ${data.answer}
+        `;
         responseDiv.appendChild(answerElement);
         responseDiv.scrollTop = responseDiv.scrollHeight;
+        
+        // Leitura automática se estiver ativada
+        const autoSpeech = document.getElementById('autoSpeech').checked;
+        if (autoSpeech && speechSynthesis) {
+          setTimeout(() => {
+            speakText(data.answer, responseId);
+          }, 500);
+        }
         
         updateStatus('✅ Resposta recebida! Continue falando...', true);
 
@@ -462,6 +658,7 @@
       document.getElementById('transcriptionText').innerHTML = '<p style="color: #999;">Sua fala aparecerá aqui...</p>';
       document.getElementById('responseText').innerHTML = '<p style="color: #999;">As respostas da IA aparecerão aqui...</p>';
       currentTranscript = '';
+      stopAllSpeech();
       
       if (isListening) {
         updateStatus('🎤 Escutando... Fale agora!', true);
@@ -469,6 +666,11 @@
         updateStatus('Pronto para escutar', false);
       }
     }
+
+    // Carrega as vozes disponíveis quando estiverem prontas
+    speechSynthesis.onvoiceschanged = function() {
+      console.log('Vozes carregadas:', speechSynthesis.getVoices());
+    };
   </script>
 
 </body>
