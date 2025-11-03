@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Assistente Java Backend - Voz</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #2c3e50, #3498db);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      width: 100%;
+      max-width: 900px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #2c3e50, #e74c3c);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 1.8rem;
+      margin-bottom: 5px;
+    }
+    .header p {
+      opacity: 0.9;
+      font-size: 0.9rem;
+    }
+    .content {
+      padding: 30px;
+    }
+    .voice-section {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .voice-btn {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: none;
+      font-size: 3rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .voice-btn.listen {
+      background: linear-gradient(135deg, #2ecc71, #27ae60);
+      color: white;
+    }
+    .voice-btn.listening {
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: white;
+      animation: pulse 1.5s infinite;
+    }
+    .voice-btn:hover {
+      transform: scale(1.05);
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    .transcription-display {
+      background: #f9f9f9;
+      border-radius: 15px;
+      padding: 20px;
+      border: 2px solid #e0e0e0;
+      margin: 20px 0;
+      min-height: 100px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .transcription-text {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #333;
+      text-align: center;
+    }
+    .interim {
+      color: #999;
+      font-style: italic;
+    }
+    .final {
+      color: #333;
+      font-weight: 500;
+    }
+    .response-section {
+      background: #f9f9f9;
+      border-radius: 15px;
+      padding: 20px;
+      border: 2px solid #e0e0e0;
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+    }
+    .panel-title {
+      font-weight: 600;
+      color: #2c3e50;
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+    }
+    .response-content {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #333;
+    }
+    .response-item {
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 10px;
+      background: white;
+      border-left: 4px solid #2ecc71;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .status-bar {
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 1rem;
+      color: #666;
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+    .status-bar.active {
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      animation: fadeIn 0.3s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+    }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 25px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-weight: 500;
+    }
+    .btn-secondary {
+      background: #95a5a6;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: #7f8c8d;
+      transform: translateY(-2px);
+    }
+    .instructions {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #666;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>🎤 Assistente Java Backend - Voz</h1>
+      <p>Fale suas perguntas e receba respostas da IA em tempo real</p>
+    </div>
+
+    <div class="content">
+      <div class="instructions">
+        <p>Clique no microfone e comece a falar. Sua voz será transcrita e enviada para a IA automaticamente.</p>
+      </div>
+
+      <div class="voice-section">
+        <button class="voice-btn listen" id="voiceButton" onclick="toggleVoiceRecognition()">
+          🎤
+        </button>
+        <p id="voiceStatus">Clique no microfone para começar</p>
+      </div>
+
+      <div class="transcription-display">
+        <div class="panel-title">
+          <span>🗣️</span>
+          <span>Sua Fala Transcrita</span>
+        </div>
+        <div class="transcription-text" id="transcriptionText">
+          <p style="color: #999;">Sua fala aparecerá aqui...</p>
+        </div>
+      </div>
+
+      <div class="response-section">
+        <div class="panel-title">
+          <span>🤖</span>
+          <span>Resposta da IA</span>
+        </div>
+        <div class="response-content" id="responseText">
+          <p style="color: #999;">As respostas da IA aparecerão aqui...</p>
+        </div>
+      </div>
+
+      <div class="status-bar" id="statusBar">
+        <span id="statusText">Pronto para escutar</span>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-secondary" onclick="clearAll()">
+          🗑️ Limpar Tudo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let recognition = null;
+    let isListening = false;
+    let currentTranscript = '';
+
+    window.onload = function() {
+      initializeRecognition();
+    };
+
+    function initializeRecognition() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        updateStatus('❌ Reconhecimento de voz não suportado neste navegador', false);
+        document.getElementById('voiceButton').disabled = true;
+        document.getElementById('voiceStatus').textContent = 'Navegador não suporta reconhecimento de voz';
+        return;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'pt-BR';
+
+      recognition.onstart = function() {
+        isListening = true;
+        updateVoiceUI(true);
+        updateStatus('🎤 Escutando... Fale agora!', true);
+      };
+
+      recognition.onresult = function(event) {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        // Atualiza a transcrição em tempo real
+        if (interimTranscript.trim()) {
+          updateTranscription(interimTranscript, true);
+          currentTranscript = interimTranscript;
+        }
+
+        // Quando detecta uma pausa (transcrição final), envia para IA
+        if (finalTranscript.trim()) {
+          updateTranscription(finalTranscript, false);
+          currentTranscript = finalTranscript;
+          sendToAI(finalTranscript.trim());
+        }
+      };
+
+      recognition.onerror = function(event) {
+        console.error('Erro no reconhecimento:', event.error);
+        if (event.error === 'no-speech') {
+          updateStatus('🎤 Nenhuma fala detectada. Continue falando...', true);
+        } else if (event.error === 'audio-capture') {
+          updateStatus('❌ Erro no microfone. Verifique as permissões.', false);
+          stopVoiceRecognition();
+        } else if (event.error === 'not-allowed') {
+          updateStatus('❌ Permissão de microfone negada.', false);
+          stopVoiceRecognition();
+        } else {
+          updateStatus('⚠️ Erro: ' + event.error, true);
+        }
+      };
+
+      recognition.onend = function() {
+        if (isListening) {
+          // Reconecta automaticamente se ainda estiver escutando
+          recognition.start();
+        } else {
+          updateVoiceUI(false);
+          updateStatus('⏸️ Escuta parada', false);
+        }
+      };
+    }
+
+    function toggleVoiceRecognition() {
+      if (!recognition) {
+        alert('Reconhecimento de voz não disponível');
+        return;
+      }
+
+      if (isListening) {
+        stopVoiceRecognition();
+      } else {
+        startVoiceRecognition();
+      }
+    }
+
+    function startVoiceRecognition() {
+      isListening = true;
+      recognition.start();
+    }
+
+    function stopVoiceRecognition() {
+      isListening = false;
+      recognition.stop();
+    }
+
+    function updateVoiceUI(listening) {
+      const voiceButton = document.getElementById('voiceButton');
+      const voiceStatus = document.getElementById('voiceStatus');
+      
+      if (listening) {
+        voiceButton.classList.remove('listen');
+        voiceButton.classList.add('listening');
+        voiceButton.textContent = '🛑';
+        voiceStatus.textContent = 'Ouvindo... Fale agora!';
+      } else {
+        voiceButton.classList.remove('listening');
+        voiceButton.classList.add('listen');
+        voiceButton.textContent = '🎤';
+        voiceStatus.textContent = 'Clique no microfone para começar';
+      }
+    }
+
+    function updateTranscription(text, isInterim) {
+      const transcriptionDiv = document.getElementById('transcriptionText');
+      
+      if (isInterim) {
+        // Mostra transcrição provisória
+        transcriptionDiv.innerHTML = `<span class="interim">${text}</span>`;
+      } else {
+        // Mostra transcrição final
+        transcriptionDiv.innerHTML = `<span class="final">${text}</span>`;
+      }
+    }
+
+    async function sendToAI(transcript) {
+      if (!transcript.trim()) return;
+
+      updateStatus('🧠 Enviando para IA...', true);
+      
+      const responseDiv = document.getElementById('responseText');
+      
+      // Remove mensagem padrão se existir
+      if (responseDiv.querySelector('p[style*="color: #999"]')) {
+        responseDiv.innerHTML = '';
+      }
+      
+      const loadingElement = document.createElement('div');
+      loadingElement.innerHTML = '<span class="loading"></span> Processando sua pergunta...';
+      responseDiv.appendChild(loadingElement);
+      responseDiv.scrollTop = responseDiv.scrollHeight;
+
+      try {
+        const response = await fetch('/interview', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            question: transcript,
+            language: 'pt-BR'
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        // Remove loading e adiciona resposta
+        responseDiv.removeChild(loadingElement);
+        
+        const answerElement = document.createElement('div');
+        answerElement.className = 'response-item';
+        answerElement.textContent = data.answer;
+        responseDiv.appendChild(answerElement);
+        responseDiv.scrollTop = responseDiv.scrollHeight;
+        
+        updateStatus('✅ Resposta recebida! Continue falando...', true);
+
+      } catch (error) {
+        console.error('Erro ao chamar IA:', error);
+        
+        // Remove loading e mostra erro
+        if (responseDiv.contains(loadingElement)) {
+          responseDiv.removeChild(loadingElement);
+        }
+        
+        const errorElement = document.createElement('div');
+        errorElement.innerHTML = '<span style="color: red;">❌ Erro ao obter resposta da IA. Tente novamente.</span>';
+        responseDiv.appendChild(errorElement);
+        responseDiv.scrollTop = responseDiv.scrollHeight;
+        
+        updateStatus('❌ Erro na conexão com IA', false);
+      }
+    }
+
+    function updateStatus(message, isActive) {
+      const statusBar = document.getElementById('statusBar');
+      const statusText = document.getElementById('statusText');
+      
+      statusText.textContent = message;
+      
+      if (isActive) {
+        statusBar.classList.add('active');
+      } else {
+        statusBar.classList.remove('active');
+      }
+    }
+
+    function clearAll() {
+      document.getElementById('transcriptionText').innerHTML = '<p style="color: #999;">Sua fala aparecerá aqui...</p>';
+      document.getElementById('responseText').innerHTML = '<p style="color: #999;">As respostas da IA aparecerão aqui...</p>';
+      currentTranscript = '';
+      
+      if (isListening) {
+        updateStatus('🎤 Escutando... Fale agora!', true);
+      } else {
+        updateStatus('Pronto para escutar', false);
+      }
+    }
+  </script>
+
+</body>
+</html>
