@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Assistente Java Backend - Voz</title>
+  <title>Assistente Sophia - Voz Inteligente</title>
   <style>
     * {
       margin: 0;
@@ -28,7 +28,7 @@
       overflow: hidden;
     }
     .header {
-      background: linear-gradient(135deg, #2c3e50, #e74c3c);
+      background: linear-gradient(135deg, #2c3e50, #9b59b6);
       color: white;
       padding: 20px;
       text-align: center;
@@ -131,7 +131,7 @@
       margin-bottom: 15px;
       border-radius: 10px;
       background: white;
-      border-left: 4px solid #2ecc71;
+      border-left: 4px solid #9b59b6;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       position: relative;
     }
@@ -284,8 +284,8 @@
 
   <div class="container">
     <div class="header">
-      <h1>🎤 Assistente Java Backend - Voz</h1>
-      <p>Fale suas perguntas e receba respostas da IA em tempo real</p>
+      <h1>🎤 Assistente Sophia - Voz Inteligente</h1>
+      <p>Especialista em Java Backend e Direito para Concursos</p>
     </div>
 
     <div class="content">
@@ -349,10 +349,10 @@
     let currentTranscript = '';
     let speechSynthesis = window.speechSynthesis;
     let currentUtterance = null;
+    let isProcessing = false; // Evita múltiplas chamadas à API
 
     window.onload = function() {
       initializeRecognition();
-      // Verifica suporte à síntese de voz
       if (!speechSynthesis) {
         console.warn('Síntese de voz não suportada neste navegador');
         document.getElementById('autoSpeech').disabled = true;
@@ -361,7 +361,7 @@
 
     function initializeRecognition() {
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        updateStatus('❌ Reconhecimento de voz não suportado neste navegador', false);
+        updateStatus('❌ Reconhecimento de voz não suportado', false);
         document.getElementById('voiceButton').disabled = true;
         document.getElementById('voiceStatus').textContent = 'Navegador não suporta reconhecimento de voz';
         return;
@@ -392,14 +392,13 @@
           }
         }
 
-        // Atualiza a transcrição em tempo real
         if (interimTranscript.trim()) {
           updateTranscription(interimTranscript, true);
           currentTranscript = interimTranscript;
         }
 
-        // Quando detecta uma pausa (transcrição final), envia para IA
-        if (finalTranscript.trim()) {
+        // Só envia para IA quando há transcrição final E não está processando outra
+        if (finalTranscript.trim() && !isProcessing) {
           updateTranscription(finalTranscript, false);
           currentTranscript = finalTranscript;
           sendToAI(finalTranscript.trim());
@@ -416,14 +415,11 @@
         } else if (event.error === 'not-allowed') {
           updateStatus('❌ Permissão de microfone negada.', false);
           stopVoiceRecognition();
-        } else {
-          updateStatus('⚠️ Erro: ' + event.error, true);
         }
       };
 
       recognition.onend = function() {
         if (isListening) {
-          // Reconecta automaticamente se ainda estiver escutando
           recognition.start();
         } else {
           updateVoiceUI(false);
@@ -435,29 +431,33 @@
     function speakText(text, responseId = null) {
       if (!speechSynthesis) return;
       
-      // Para qualquer fala anterior
       stopSpeech();
       
       const utterance = new SpeechSynthesisUtterance(text);
       
-      // Configurações para voz feminina em português
+      // Configurações otimizadas para voz
       utterance.lang = 'pt-BR';
-      utterance.rate = 1.0; // Velocidade normal
-      utterance.pitch = 1.2; // Tom mais agudo (feminino)
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
       utterance.volume = 1.0;
       
-      // Tenta encontrar uma voz feminina em português
+      // Seleciona a melhor voz disponível
       const voices = speechSynthesis.getVoices();
-      const femaleVoice = voices.find(voice => 
-        voice.lang.includes('pt') && 
-        voice.name.toLowerCase().includes('female')
+      
+      // Prioridade: voz feminina em português brasileiro
+      let selectedVoice = voices.find(voice => 
+        voice.lang === 'pt-BR' && voice.name.toLowerCase().includes('female')
       ) || voices.find(voice => 
-        voice.lang.includes('pt') && 
-        !voice.name.toLowerCase().includes('male')
+        voice.lang === 'pt-BR' && voice.name.toLowerCase().includes('feminina')
+      ) || voices.find(voice => 
+        voice.lang === 'pt-BR'
+      ) || voices.find(voice => 
+        voice.lang.includes('pt')
       );
       
-      if (femaleVoice) {
-        utterance.voice = femaleVoice;
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log('Usando voz:', selectedVoice.name);
       }
       
       if (responseId) {
@@ -500,7 +500,6 @@
       }
       currentUtterance = null;
       
-      // Reseta todos os botões de play
       document.querySelectorAll('.speech-btn.playing').forEach(btn => {
         btn.classList.remove('playing');
         btn.innerHTML = '🔊';
@@ -556,22 +555,20 @@
       const transcriptionDiv = document.getElementById('transcriptionText');
       
       if (isInterim) {
-        // Mostra transcrição provisória
         transcriptionDiv.innerHTML = `<span class="interim">${text}</span>`;
       } else {
-        // Mostra transcrição final
         transcriptionDiv.innerHTML = `<span class="final">${text}</span>`;
       }
     }
 
     async function sendToAI(transcript) {
-      if (!transcript.trim()) return;
+      if (!transcript.trim() || isProcessing) return;
 
+      isProcessing = true;
       updateStatus('🧠 Enviando para IA...', true);
       
       const responseDiv = document.getElementById('responseText');
       
-      // Remove mensagem padrão se existir
       if (responseDiv.querySelector('p[style*="color: #999"]')) {
         responseDiv.innerHTML = '';
       }
@@ -582,14 +579,19 @@
       responseDiv.scrollTop = responseDiv.scrollHeight;
 
       try {
-        const response = await fetch('/interview', {
+        const response = await fetch('/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            question: transcript,
-            language: 'pt-BR'
+            messages: [
+              {
+                role: "user",
+                content: transcript
+              }
+            ],
+            model: 'gpt-3.5-turbo'
           })
         });
 
@@ -599,7 +601,6 @@
           throw new Error(data.error);
         }
 
-        // Remove loading e adiciona resposta
         responseDiv.removeChild(loadingElement);
         
         const responseId = Date.now().toString();
@@ -607,18 +608,17 @@
         answerElement.className = 'response-item';
         answerElement.innerHTML = `
           <div class="speech-controls">
-            <button class="speech-btn" data-response="${responseId}" onclick="speakText('${data.answer.replace(/'/g, "\\'")}', '${responseId}')">🔊</button>
+            <button class="speech-btn" data-response="${responseId}" onclick="speakText('${data.response.replace(/'/g, "\\'")}', '${responseId}')">🔊</button>
           </div>
-          ${data.answer}
+          ${data.response}
         `;
         responseDiv.appendChild(answerElement);
         responseDiv.scrollTop = responseDiv.scrollHeight;
         
-        // Leitura automática se estiver ativada
         const autoSpeech = document.getElementById('autoSpeech').checked;
         if (autoSpeech && speechSynthesis) {
           setTimeout(() => {
-            speakText(data.answer, responseId);
+            speakText(data.response, responseId);
           }, 500);
         }
         
@@ -627,7 +627,6 @@
       } catch (error) {
         console.error('Erro ao chamar IA:', error);
         
-        // Remove loading e mostra erro
         if (responseDiv.contains(loadingElement)) {
           responseDiv.removeChild(loadingElement);
         }
@@ -638,6 +637,8 @@
         responseDiv.scrollTop = responseDiv.scrollHeight;
         
         updateStatus('❌ Erro na conexão com IA', false);
+      } finally {
+        isProcessing = false;
       }
     }
 
@@ -667,9 +668,8 @@
       }
     }
 
-    // Carrega as vozes disponíveis quando estiverem prontas
     speechSynthesis.onvoiceschanged = function() {
-      console.log('Vozes carregadas:', speechSynthesis.getVoices());
+      console.log('Vozes disponíveis:', speechSynthesis.getVoices());
     };
   </script>
 
