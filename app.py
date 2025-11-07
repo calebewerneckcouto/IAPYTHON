@@ -1,58 +1,59 @@
-import os
 from flask import Flask, request, jsonify, render_template
-from openai import OpenAI
+import openai
+import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
 
-# Configuração da API da OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Configuração para openai 0.28
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/java-assistant')
-def java_assistant():
-    return render_template('java_assistant.html')
-
 @app.route('/chat', methods=['POST'])
-def chat_endpoint():
+def chat():
     try:
-        data = request.get_json()
-
-        if not data or 'messages' not in data:
-            return jsonify({"error": "Dados inválidos"}), 400
-
-        messages = data['messages']
-        model = data.get('model', 'gpt-3.5-turbo')
-
-        system_content = """Você é uma assistente especializada chamada Sophia. 
-        Responda SEMPRE em português brasileiro, mas pronuncie corretamente termos técnicos em inglês.
-        Seja simpática, envolvente e natural. Use emojis quando apropriado.
+        data = request.json
         
-        Áreas de especialização:
-        - Java Backend (Spring Boot, JPA/Hibernate, REST APIs)
-        - Direito e concursos jurídicos (português correto para provas)
-        - Desenvolvimento de software em geral
-        - Outros assuntos técnicos e profissionais"""
+        if not data or 'message' not in data:
+            return jsonify({"error": "Mensagem não fornecida"}), 400
+            
+        user_message = data.get('message', '').strip()
+        
+        if not user_message:
+            return jsonify({"error": "Mensagem vazia"}), 400
 
-        conversation = [{"role": "system", "content": system_content}] + messages
-
-        response = client.chat.completions.create(
-            model=model,
-            messages=conversation,
-            temperature=0.8,
-            max_tokens=500
+        # Verificar se API key está configurada
+        if not openai.api_key:
+            return jsonify({"error": "API key não configurada"}), 500
+        
+        # Sintaxe para openai 0.28
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "user", "content": user_message}
+            ],
+            max_tokens=150,
+            temperature=0.7
         )
-
-        reply = response.choices[0].message.content
-        return jsonify({"response": reply})
-
+        
+        bot_response = response.choices[0].message.content.strip()
+        return jsonify({"response": bot_response})
+        
+    except openai.error.AuthenticationError:
+        return jsonify({"error": "API key inválida ou expirada"}), 401
+    except openai.error.RateLimitError:
+        return jsonify({"error": "Limite de requisições excedido"}), 429
+    except openai.error.APIConnectionError:
+        return jsonify({"error": "Erro de conexão com a API"}), 503
+    except openai.error.InvalidRequestError as e:
+        return jsonify({"error": f"Requisição inválida: {str(e)}"}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)

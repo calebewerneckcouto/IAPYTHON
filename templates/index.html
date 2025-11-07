@@ -562,43 +562,42 @@
     }
 
     async function sendToAI(transcript) {
-      if (!transcript.trim() || isProcessing) return;
+    if (!transcript.trim() || isProcessing) return;
 
-      isProcessing = true;
-      updateStatus('🧠 Enviando para IA...', true);
-      
-      const responseDiv = document.getElementById('responseText');
-      
-      if (responseDiv.querySelector('p[style*="color: #999"]')) {
+    isProcessing = true;
+    updateStatus('🧠 Enviando para IA...', true);
+    
+    const responseDiv = document.getElementById('responseText');
+    
+    if (responseDiv.querySelector('p[style*="color: #999"]')) {
         responseDiv.innerHTML = '';
-      }
-      
-      const loadingElement = document.createElement('div');
-      loadingElement.innerHTML = '<span class="loading"></span> Processando sua pergunta...';
-      responseDiv.appendChild(loadingElement);
-      responseDiv.scrollTop = responseDiv.scrollHeight;
+    }
+    
+    const loadingElement = document.createElement('div');
+    loadingElement.innerHTML = '<span class="loading"></span> Processando sua pergunta...';
+    responseDiv.appendChild(loadingElement);
+    responseDiv.scrollTop = responseDiv.scrollHeight;
 
-      try {
+    try {
+        // CORREÇÃO: Enviar no formato que o backend espera
         const response = await fetch('/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messages: [
-              {
-                role: "user",
-                content: transcript
-              }
-            ],
-            model: 'gpt-3.5-turbo'
-          })
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: transcript  // Formato correto para o backend
+            })
         });
+
+        if (!response.ok) {
+            throw new Error(`Erro HTTP: ${response.status}`);
+        }
 
         const data = await response.json();
 
         if (data.error) {
-          throw new Error(data.error);
+            throw new Error(data.error);
         }
 
         responseDiv.removeChild(loadingElement);
@@ -606,41 +605,46 @@
         const responseId = Date.now().toString();
         const answerElement = document.createElement('div');
         answerElement.className = 'response-item';
+        
+        // CORREÇÃO: Escapar caracteres especiais para evitar erros no HTML
+        const safeResponse = data.response.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+        
         answerElement.innerHTML = `
-          <div class="speech-controls">
-            <button class="speech-btn" data-response="${responseId}" onclick="speakText('${data.response.replace(/'/g, "\\'")}', '${responseId}')">🔊</button>
-          </div>
-          ${data.response}
+            <div class="speech-controls">
+                <button class="speech-btn" data-response="${responseId}" 
+                        onclick="speakText('${safeResponse}', '${responseId}')">🔊</button>
+            </div>
+            ${data.response}
         `;
         responseDiv.appendChild(answerElement);
         responseDiv.scrollTop = responseDiv.scrollHeight;
         
         const autoSpeech = document.getElementById('autoSpeech').checked;
         if (autoSpeech && speechSynthesis) {
-          setTimeout(() => {
-            speakText(data.response, responseId);
-          }, 500);
+            setTimeout(() => {
+                speakText(data.response, responseId);
+            }, 500);
         }
         
         updateStatus('✅ Resposta recebida! Continue falando...', true);
 
-      } catch (error) {
+    } catch (error) {
         console.error('Erro ao chamar IA:', error);
         
         if (responseDiv.contains(loadingElement)) {
-          responseDiv.removeChild(loadingElement);
+            responseDiv.removeChild(loadingElement);
         }
         
         const errorElement = document.createElement('div');
-        errorElement.innerHTML = '<span style="color: red;">❌ Erro ao obter resposta da IA. Tente novamente.</span>';
+        errorElement.innerHTML = `<span style="color: red;">❌ Erro: ${error.message}</span>`;
         responseDiv.appendChild(errorElement);
         responseDiv.scrollTop = responseDiv.scrollHeight;
         
         updateStatus('❌ Erro na conexão com IA', false);
-      } finally {
+    } finally {
         isProcessing = false;
-      }
     }
+}
 
     function updateStatus(message, isActive) {
       const statusBar = document.getElementById('statusBar');
